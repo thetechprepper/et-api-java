@@ -72,15 +72,15 @@ public class VoacapOutputParser {
 			// column 12 - Empty unused frequency
 
                         // Only grab the columns with the first through the last frequency
-                        curFreqList = freqs.subList(2, 10);
+                        curFreqList = freqs.subList(2, 11);
                     }
 
 		    // Parse the reliability line (REL) for the current hour
                     if (line.contains("REL")) {
                         // Only grab reliability values that map to ordered list of frequencies
-                        List<String> curRelList = parseLine(line).subList(1, 9);
+                        List<String> curRelList = parseLine(line).subList(1, 10);
 
-                        for (int i = 0; i <= 7; i++) {
+                        for (int i = 0; i <= 8; i++) {
                             curPredictionHour.addFrequency(
                                 Double.valueOf(curFreqList.get(i)),
                                 Double.valueOf(curRelList.get(i))
