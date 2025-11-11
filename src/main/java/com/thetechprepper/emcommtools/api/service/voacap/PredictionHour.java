@@ -1,4 +1,4 @@
-package com.thetechprepper.emcommtools.api.voacap;
+package com.thetechprepper.emcommtools.api.service.voacap;
 
 import java.util.LinkedHashMap;
 import java.util.Map;

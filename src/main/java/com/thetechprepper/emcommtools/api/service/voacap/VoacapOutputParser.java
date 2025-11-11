@@ -1,10 +1,14 @@
-package com.thetechprepper.emcommtools.api.voacap;
+package com.thetechprepper.emcommtools.api.service.voacap;
 
 import java.io.*;
 import java.nio.file.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+@Service
 public class VoacapOutputParser {
 
     /**
