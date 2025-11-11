@@ -6,6 +6,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,6 +28,9 @@ public class VoacapController {
 
     @Autowired
     private VoacapOutputParser parser;
+
+    @Value("${api.voacap.output.path}")
+    private String voacapOutputPath;
 
     @PostMapping(value = "/voacap", consumes = "application/json", produces = "application/json")
     public ResponseEntity<List<PredictionHour>> postPrediction(@RequestBody VoacapRequest request) {
@@ -74,17 +78,13 @@ public class VoacapController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(List.of());
         }
 
-	// Assume that the run was successful and read the output
-	// TODO push into properties and use HOME env var
-        final String path = "/home/gaston/itshfbc/run/voacapx.out";
-
         try {
-            List<PredictionHour> hours = parser.parse(path);
+            List<PredictionHour> hours = parser.parse(voacapOutputPath);
             LOG.info("Parsed {} prediction hours", hours.size());
 
             return ResponseEntity.ok(hours);
         } catch (Exception e) {
-            LOG.error("Failed to parse VOACAP output file: {}", path, e);
+            LOG.error("Failed to parse VOACAP output file: {}", voacapOutputPath, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(List.of());
         }
     }
