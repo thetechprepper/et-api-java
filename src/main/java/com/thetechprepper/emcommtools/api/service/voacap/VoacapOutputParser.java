@@ -5,21 +5,35 @@ import java.nio.file.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class VoacapParser {
+public class VoacapOutputParser {
 
-    public static void main(String[] args) throws IOException {
-        if (args.length == 0) {
-            System.err.println("Usage: java VoacapParser <voacapx.out>");
-            System.exit(1);
-        }
+    /**
+     * Parses a VOACAP output file (typically named {@code voacapx.out}) and extracts
+     * hourly prediction data into a structured list of {@link PredictionHour} objects.
+     *
+     * <p>
+     * Each prediction hour record in the file is read sequentially and transformed
+     * into a {@code PredictionHour} instance containing frequency and signal data
+     * for that specific hour. The resulting list represents the full 24-hour
+     * propagation prediction contained in the VOACAP output.
+     * </p>
+     *
+     *
+     * @param outputFilePath the absolute or relative path to the voacapx.out file
+     * @return a list of {@link PredictionHour} objects, one for each hour of the VOACAP prediction.
+     * @throws FileNotFoundException if the specified output file does not exist or cannot be accessed.
+     * @throws IOException if an I/O error occurs while reading the file.
+     */
+    public List<PredictionHour> parse(final String outputFilePath) throws 
+            FileNotFoundException, IOException  {
 
-        Path path = Paths.get(args[0]);
+        List<PredictionHour> hours = new ArrayList<>();
+
+        Path path = Paths.get(outputFilePath);
         if (!Files.exists(path)) {
-            System.err.println("File not found: " + path);
-            System.exit(1);
+	    throw new FileNotFoundException("File not found: " + path);
         }
 
-        List<PredictionHour> records = new ArrayList<>();
         boolean inPredictionHour = false;
 
         try (BufferedReader br = Files.newBufferedReader(path)) {
@@ -32,39 +46,34 @@ public class VoacapParser {
                 lineNumber++;
 
                 if (isPredictionStart(line)) {
-                    //printDebugLine(lineNumber, "PREDICTION_HOUR_START");
                     inPredictionHour = true;
                     curPredictionHour = new PredictionHour();
                 }
 
                 if (line.contains("SNRxx")) {
-                    //printDebugLine(lineNumber, "PREDICTION_HOUR_END");
                     inPredictionHour = false;
-                    records.add(curPredictionHour);
-                    curPredictionHour.printFrequencies();
+                    hours.add(curPredictionHour);
                 }
 
                 if (isPredictionData(line)) {
+		    // Parse the frequency line (FREQ) for the current hour
                     if (line.endsWith("FREQ")) {
                         List<String> freqs = parseLine(line);
 
-                        //System.out.println("Hour: " + hour);
                         // column 0  - 24-hour as a double (1.0)
-                        // column 1  - MUF
+                        // column 1  - Maximum Usable Frequency (MUF) as a double (14.1)
                         // column 2  - first frequency
                         // column 10 - last frequency
-			// column 11... unused
-                        System.out.println("Hour: " + freqs.get(0));
-                        for (int i = 2; i <= 10; i++) {
-                            //curPredictionHour.addFrequency(Double.valueOf(cols.get(i)));
-                        }
+			// column 11 - Empty unused frequency
+			// column 12 - Empty unused frequency
 
                         // Only grab the columns with the first through the last frequency
                         curFreqList = freqs.subList(2, 10);
                     }
 
+		    // Parse the reliability line (REL) for the current hour
                     if (line.contains("REL")) {
-                        // only grab reliability values that map to ordered list of frequencies
+                        // Only grab reliability values that map to ordered list of frequencies
                         List<String> curRelList = parseLine(line).subList(1, 9);
 
                         for (int i = 0; i <= 7; i++) {
@@ -78,25 +87,21 @@ public class VoacapParser {
             }
         }
 
-        System.out.printf("Parsed %d records from %s%n", records.size(), path);
+	return hours;
     }
 
-    private static boolean isPredictionStart(final String line) {
-        return line.matches(".*FREQ$");
+    private boolean isPredictionStart(final String line) {
+        return (line != null) && line.matches(".*FREQ$");
     }
 
-    private static boolean isPredictionData(final String line) {
-        return line.matches(".*(FREQ|S DBW |REL   |SNRxx )$");
+    private boolean isPredictionData(final String line) {
+        return (line != null) && line.matches(".*(FREQ|S DBW |REL   |SNRxx )$");
     }
 
-    private static void printDebugLine(final int lineNumber, final String tokenType) {
-        System.out.printf("%3d| %-15s%n", lineNumber, tokenType);
-    }
-
-    public static List<String> parseLine(String line) {
+    public List<String> parseLine(final String line) {
         List<String> fields = new ArrayList<>();
 
-        if (line == null) {
+        if (null == line) {
             return fields;
         }
 
