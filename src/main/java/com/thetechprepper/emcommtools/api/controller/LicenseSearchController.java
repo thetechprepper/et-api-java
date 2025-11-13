@@ -5,7 +5,9 @@ import com.thetechprepper.emcommtools.api.model.Zip2Geo;
 import com.thetechprepper.emcommtools.api.model.http.PositionResponseStatus;
 import com.thetechprepper.emcommtools.api.model.position.GpsPosition;
 import com.thetechprepper.emcommtools.api.model.position.Position;
+import com.thetechprepper.emcommtools.api.model.position.MaidenheadPosition;
 import com.thetechprepper.emcommtools.api.service.GpsService;
+import com.thetechprepper.emcommtools.api.service.UserService;
 import com.thetechprepper.emcommtools.api.service.search.LicenseSearchService;
 import com.thetechprepper.emcommtools.api.service.search.Zip2GeoService;
 import com.thetechprepper.emcommtools.api.util.GeoUtils;
@@ -34,6 +36,9 @@ public class LicenseSearchController {
     @Autowired
     private GpsService gpsService;
 
+    @Autowired
+    private UserService userService;
+
     @GetMapping(value = "/license", produces = "application/json")
     public ResponseEntity<Licensee> getLicense(@RequestParam String callsign) {
 
@@ -59,7 +64,23 @@ public class LicenseSearchController {
                               zip2Geo.getLat(), zip2Geo.getLon());
                       licensee.setDistance(distanceInMiles);
                       licensee.setBearing(bearing);
-                  }
+                  } else {
+                      try {
+                          MaidenheadPosition fallbackPosition = MaidenheadPosition.newInstance(
+                              userService.getUserConfig().getGrid()
+                          );
+                          Double distanceInMiles = GeoUtils.distance(fallbackPosition.getLat(), fallbackPosition.getLon(),
+                                  zip2Geo.getLat(), zip2Geo.getLon(), "M");
+                          Integer bearing = GeoUtils.bearing(fallbackPosition.getLat(), fallbackPosition.getLon(),
+                                  zip2Geo.getLat(), zip2Geo.getLon());
+                          licensee.setDistance(distanceInMiles);
+                          licensee.setBearing(bearing);
+                      } catch(Exception e) {
+                          LOG.error("No GPS detected and invalid grid square provided", e);
+                          licensee.setDistance(0.0);
+                          licensee.setBearing(0);
+                      }
+		  }
 
                   licensee.setLat(zip2Geo.getLat());
                   licensee.setLon(zip2Geo.getLon());
