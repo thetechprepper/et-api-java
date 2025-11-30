@@ -89,7 +89,7 @@ public class WinlinkSearchService extends AbstractLuceneSearchService<WinlinkRms
         Document doc = new Document();
         doc.add(new TextField(INDEX_FIELD_BASE_CALLSIGN, channel.getBaseCallsign(), Field.Store.YES));
         doc.add(new TextField(INDEX_FIELD_CALLSIGN, channel.getCallsign(), Field.Store.YES));
-        doc.add(new StringField(INDEX_FIELD_MODE, channel.getMode(), Field.Store.YES));
+        doc.add(new TextField(INDEX_FIELD_MODE, channel.getMode(), Field.Store.YES));
         doc.add(new TextField(INDEX_FIELD_MODE_CODE, String.valueOf(channel.getModeCode()), Field.Store.YES));
         doc.add(new TextField(INDEX_FIELD_FREQ, String.valueOf(channel.getFreq()), Field.Store.YES));
         doc.add(new StringField(INDEX_FIELD_BAND, channel.getBand(), Field.Store.YES));
@@ -132,7 +132,7 @@ public class WinlinkSearchService extends AbstractLuceneSearchService<WinlinkRms
             }
 
             if (mode != null && !mode.isBlank()) {
-              Query modeQuery = new TermQuery(new Term(INDEX_FIELD_MODE, mode));
+              Query modeQuery = new TermQuery(new Term(INDEX_FIELD_MODE, mode.toLowerCase()));
               builder.add(modeQuery, BooleanClause.Occur.MUST);
             }
 
