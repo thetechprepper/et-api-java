@@ -26,11 +26,15 @@ public class WinlinkController {
     private WinlinkSearchService winlinkSearchService;
 
     @GetMapping(value = "/near", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<List<WinlinkRmsChannel>> findNearbyChannels(@RequestParam double lat, @RequestParam double lon) {
+    public ResponseEntity<List<WinlinkRmsChannel>> findNearbyChannels(
+            @RequestParam double lat,
+            @RequestParam double lon,
+            @RequestParam(required = false) String band)
+    {
 
         List<WinlinkRmsChannel> channels = new ArrayList<>();
 
-	channels = winlinkSearchService.findNear(lat, lon);
+	channels = winlinkSearchService.findNear(lat, lon, band);
 
         return channels.isEmpty()
             ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(List.of())

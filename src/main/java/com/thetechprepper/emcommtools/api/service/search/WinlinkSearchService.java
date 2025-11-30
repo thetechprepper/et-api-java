@@ -119,18 +119,29 @@ public class WinlinkSearchService extends AbstractLuceneSearchService<WinlinkRms
                    .withFreq(Double.valueOf(doc.get(INDEX_FIELD_FREQ)));
     }
 
-    public List<WinlinkRmsChannel> findNear(final Double lat, final Double lon) {
+    public List<WinlinkRmsChannel> findNear(final Double lat, final Double lon, final String band) {
         List<WinlinkRmsChannel> channels = new ArrayList<>();
 
         try {
             IndexReader reader = DirectoryReader.open(getDirectory());
             IndexSearcher searcher = new IndexSearcher(reader);
 
-            Query query = LatLonPoint.newDistanceQuery(INDEX_FIELD_GEO, lat, lon, DEFAULT_SEARCH_RADIUS_IN_METERS);
+            Query distanceQuery = LatLonPoint.newDistanceQuery(INDEX_FIELD_GEO, lat, lon, DEFAULT_SEARCH_RADIUS_IN_METERS);
+
+            BooleanQuery.Builder builder = new BooleanQuery.Builder();
+            builder.add(distanceQuery, BooleanClause.Occur.MUST);
+
+            if (band != null && !band.isBlank()) {
+              Query bandQuery = new TermQuery(new Term(INDEX_FIELD_BAND, band));
+              builder.add(bandQuery, BooleanClause.Occur.MUST);
+            }
+
+            Query finalQuery = builder.build();
+
             SortField sortByDistance = LatLonDocValuesField.newDistanceSort(INDEX_FIELD_GEO_SORT, lat, lon);
             Sort sort = new Sort(new SortField[] {sortByDistance});
-            TopDocs foundDocs = searcher.search(query, 20, sort);
-            LOG.debug("Found '{}' Winlink channels for query '{}'", foundDocs.totalHits, query);
+            TopDocs foundDocs = searcher.search(finalQuery, 20, sort);
+            LOG.info("Found '{}' Winlink channels for query '{}'", foundDocs.totalHits, finalQuery);
 
             for (ScoreDoc scoreDoc : foundDocs.scoreDocs) {
                 Document doc = searcher.doc(scoreDoc.doc);
