@@ -128,7 +128,7 @@ public class WinlinkSearchService extends AbstractLuceneSearchService<WinlinkRms
             SortField sortByDistance = LatLonDocValuesField.newDistanceSort(INDEX_FIELD_GEO_SORT, lat, lon);
             Sort sort = new Sort(new SortField[] {sortByDistance});
             TopDocs foundDocs = searcher.search(query, 20, sort);
-            LOG.debug("Found '{}' Winlink channels for query '{}'", foundDocs.totalHits, query);
+            LOG.info("Found '{}' Winlink channels for query '{}'", foundDocs.totalHits, query);
 
             for (ScoreDoc scoreDoc : foundDocs.scoreDocs) {
                 Document doc = searcher.doc(scoreDoc.doc);
