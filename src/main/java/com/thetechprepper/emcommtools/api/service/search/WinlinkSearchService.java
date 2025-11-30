@@ -5,6 +5,9 @@ import java.io.IOException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
+import org.apache.lucene.document.LatLonDocValuesField;
+import org.apache.lucene.document.LatLonPoint;
+import org.apache.lucene.document.StoredField;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.IndexWriter;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,6 +40,9 @@ public class WinlinkSearchService extends AbstractLuceneSearchService<WinlinkRms
     public static String INDEX_FIELD_MODE = "mode";
     public static String INDEX_FIELD_MODE_CODE = "mode_code";
     public static String INDEX_FIELD_FREQ = "freq";
+
+    public static String INDEX_FIELD_GEO = "geo";
+    public static String INDEX_FIELD_GEO_SORT = "geosort";
 
     @Override
     protected String getIndexPath() {
@@ -82,11 +88,15 @@ public class WinlinkSearchService extends AbstractLuceneSearchService<WinlinkRms
         Document doc = new Document();
         doc.add(new TextField(INDEX_FIELD_BASE_CALLSIGN, channel.getBaseCallsign(), Field.Store.YES));
         doc.add(new TextField(INDEX_FIELD_CALLSIGN, channel.getCallsign(), Field.Store.YES));
-        doc.add(new TextField(INDEX_FIELD_LAT, String.valueOf(channel.getLat()), Field.Store.YES));
-        doc.add(new TextField(INDEX_FIELD_LON, String.valueOf(channel.getLon()), Field.Store.YES));
         doc.add(new TextField(INDEX_FIELD_MODE, channel.getMode(), Field.Store.YES));
         doc.add(new TextField(INDEX_FIELD_MODE_CODE, String.valueOf(channel.getModeCode()), Field.Store.YES));
         doc.add(new TextField(INDEX_FIELD_FREQ, String.valueOf(channel.getFreq()), Field.Store.YES));
+
+        doc.add(new StoredField(INDEX_FIELD_LAT, channel.getLat()));
+        doc.add(new StoredField(INDEX_FIELD_LON, channel.getLon()));
+        doc.add(new LatLonPoint(INDEX_FIELD_GEO, channel.getLat(), channel.getLon()));
+        doc.add(new LatLonDocValuesField(INDEX_FIELD_GEO_SORT, channel.getLat(), channel.getLon()));
+
         writer.addDocument(doc);
     }
 
