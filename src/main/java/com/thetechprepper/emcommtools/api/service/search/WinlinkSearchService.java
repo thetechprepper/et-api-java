@@ -43,6 +43,7 @@ public class WinlinkSearchService extends AbstractLuceneSearchService<WinlinkRms
     private static String INDEX_FIELD_MODE = "mode";
     private static String INDEX_FIELD_MODE_CODE = "mode_code";
     private static String INDEX_FIELD_FREQ = "freq";
+    private static String INDEX_FIELD_BAND = "band";
 
     private static String INDEX_FIELD_GEO = "geo";
     private static String INDEX_FIELD_GEO_SORT = "geosort";
@@ -96,6 +97,7 @@ public class WinlinkSearchService extends AbstractLuceneSearchService<WinlinkRms
         doc.add(new TextField(INDEX_FIELD_MODE, channel.getMode(), Field.Store.YES));
         doc.add(new TextField(INDEX_FIELD_MODE_CODE, String.valueOf(channel.getModeCode()), Field.Store.YES));
         doc.add(new TextField(INDEX_FIELD_FREQ, String.valueOf(channel.getFreq()), Field.Store.YES));
+        doc.add(new TextField(INDEX_FIELD_BAND, channel.getBand(), Field.Store.YES));
 
         doc.add(new StoredField(INDEX_FIELD_LAT, channel.getLat()));
         doc.add(new StoredField(INDEX_FIELD_LON, channel.getLon()));
@@ -128,12 +130,12 @@ public class WinlinkSearchService extends AbstractLuceneSearchService<WinlinkRms
             SortField sortByDistance = LatLonDocValuesField.newDistanceSort(INDEX_FIELD_GEO_SORT, lat, lon);
             Sort sort = new Sort(new SortField[] {sortByDistance});
             TopDocs foundDocs = searcher.search(query, 20, sort);
-            LOG.info("Found '{}' Winlink channels for query '{}'", foundDocs.totalHits, query);
+            LOG.debug("Found '{}' Winlink channels for query '{}'", foundDocs.totalHits, query);
 
             for (ScoreDoc scoreDoc : foundDocs.scoreDocs) {
                 Document doc = searcher.doc(scoreDoc.doc);
 		WinlinkRmsChannel channel = convertDocumentToEntity(doc);
-                LOG.info("Found Winlink channel: '{}'", channel);
+                LOG.debug("Found Winlink channel: '{}'", channel);
                 channels.add(channel);
             }
             reader.close();

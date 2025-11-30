@@ -1,6 +1,5 @@
 package com.thetechprepper.emcommtools.api.util;
 
-
 public class GeoUtils {
 
     /**

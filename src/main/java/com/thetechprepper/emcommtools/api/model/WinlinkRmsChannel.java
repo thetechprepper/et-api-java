@@ -2,6 +2,8 @@ package com.thetechprepper.emcommtools.api.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import com.thetechprepper.emcommtools.api.util.BandUtils;
+
 public class WinlinkRmsChannel {
 
     @JsonProperty("base_callsign")
@@ -102,7 +104,12 @@ public class WinlinkRmsChannel {
         sb.append(", mode='").append(mode).append('\'');
         sb.append(", modeCode='").append(modeCode).append('\'');
         sb.append(", freq='").append(freq).append('\'');
+        sb.append(", band='").append(getBand()).append('\'');
         sb.append('}');
         return sb.toString();
+    }
+
+    public String getBand() {
+        return BandUtils.getBand(this.freq);
     }
 }
