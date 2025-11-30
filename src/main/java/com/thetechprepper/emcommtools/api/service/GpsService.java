@@ -63,7 +63,7 @@ public class GpsService {
                                 .withGridSquare(GridSquareUtils.toMaidenhead(tpv.getLatitude(), tpv.getLongitude()));
                         gpsReady = gpsPosition.getMode().equals("ThreeDimensional") ||
                                 gpsPosition.getMode().equals("TwoDimensional");
-                        LOG.info("Acquired GPS: {}", gpsPosition);
+                        LOG.debug("Acquired GPS: {}", gpsPosition);
                         setPosition(gpsPosition);
                         stale = false;
                     })
@@ -94,7 +94,7 @@ public class GpsService {
                 break;
             }
             if (!stale) {
-                LOG.info("GPS refreshed after {} milliseconds", waitPeriod);
+                LOG.debug("GPS refreshed after {} milliseconds", waitPeriod);
                 stale = true;
                 break;
             }

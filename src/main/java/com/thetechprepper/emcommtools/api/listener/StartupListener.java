@@ -2,6 +2,7 @@ package com.thetechprepper.emcommtools.api.listener;
 
 import com.thetechprepper.emcommtools.api.service.search.FaaSearchService;
 import com.thetechprepper.emcommtools.api.service.search.LicenseSearchService;
+import com.thetechprepper.emcommtools.api.service.search.WinlinkSearchService;
 import com.thetechprepper.emcommtools.api.service.search.Zip2GeoService;
 
 import org.slf4j.Logger;
@@ -27,6 +28,9 @@ public class StartupListener {
     private LicenseSearchService licenseSearchService;
 
     @Autowired
+    private WinlinkSearchService winlinkSearchService;
+
+    @Autowired
     private Zip2GeoService zip2GeoService;
 
     @EventListener
@@ -40,6 +44,7 @@ public class StartupListener {
         buildZip2GeoIndex();
         buildLicenseIndex();
         buildFaaIndex();
+	buildWinlinkIndex();
     }
 
     public void buildFaaIndex() {
@@ -48,6 +53,10 @@ public class StartupListener {
 
     public void buildLicenseIndex() {
         licenseSearchService.createIndex();
+    }
+
+    public void buildWinlinkIndex() {
+        winlinkSearchService.createIndex();
     }
 
     public void buildZip2GeoIndex() {
