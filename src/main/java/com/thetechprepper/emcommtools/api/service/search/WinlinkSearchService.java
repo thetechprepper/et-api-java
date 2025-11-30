@@ -1,5 +1,7 @@
 package com.thetechprepper.emcommtools.api.service.search;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.io.IOException;
 
 import org.apache.commons.lang3.StringUtils;
@@ -9,7 +11,8 @@ import org.apache.lucene.document.LatLonDocValuesField;
 import org.apache.lucene.document.LatLonPoint;
 import org.apache.lucene.document.StoredField;
 import org.apache.lucene.document.TextField;
-import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.*;
+import org.apache.lucene.search.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -24,7 +27,7 @@ public class WinlinkSearchService extends AbstractLuceneSearchService<WinlinkRms
     @Value("${api.index.winlink.path}")
     private String winlinkIndexPath;
 
-    public static final int NUM_CSV_FIELDS = 7;
+    private static final int NUM_CSV_FIELDS = 7;
     private static int BASE_CALLSIGN = 0;
     private static int CALLSIGN = 1;
     private static int LAT = 2;
@@ -33,16 +36,18 @@ public class WinlinkSearchService extends AbstractLuceneSearchService<WinlinkRms
     private static int MODE_CODE = 5;
     private static int FREQ = 6;
 
-    public static String INDEX_FIELD_BASE_CALLSIGN = "base_callsign";
-    public static String INDEX_FIELD_CALLSIGN = "callsign";
-    public static String INDEX_FIELD_LAT = "lat";
-    public static String INDEX_FIELD_LON = "lon";
-    public static String INDEX_FIELD_MODE = "mode";
-    public static String INDEX_FIELD_MODE_CODE = "mode_code";
-    public static String INDEX_FIELD_FREQ = "freq";
+    private static String INDEX_FIELD_BASE_CALLSIGN = "base_callsign";
+    private static String INDEX_FIELD_CALLSIGN = "callsign";
+    private static String INDEX_FIELD_LAT = "lat";
+    private static String INDEX_FIELD_LON = "lon";
+    private static String INDEX_FIELD_MODE = "mode";
+    private static String INDEX_FIELD_MODE_CODE = "mode_code";
+    private static String INDEX_FIELD_FREQ = "freq";
 
-    public static String INDEX_FIELD_GEO = "geo";
-    public static String INDEX_FIELD_GEO_SORT = "geosort";
+    private static String INDEX_FIELD_GEO = "geo";
+    private static String INDEX_FIELD_GEO_SORT = "geosort";
+
+    private static long DEFAULT_SEARCH_RADIUS_IN_METERS = 482000; // 482,000m = 482km = 300mi
 
     @Override
     protected String getIndexPath() {
@@ -110,5 +115,31 @@ public class WinlinkSearchService extends AbstractLuceneSearchService<WinlinkRms
                    .withMode(doc.get(INDEX_FIELD_MODE))
                    .withModeCode(Integer.valueOf(doc.get(INDEX_FIELD_MODE_CODE)))
                    .withFreq(Double.valueOf(doc.get(INDEX_FIELD_FREQ)));
+    }
+
+    public List<WinlinkRmsChannel> findNear(final Double lat, final Double lon) {
+        List<WinlinkRmsChannel> channels = new ArrayList<>();
+
+        try {
+            IndexReader reader = DirectoryReader.open(getDirectory());
+            IndexSearcher searcher = new IndexSearcher(reader);
+
+            Query query = LatLonPoint.newDistanceQuery(INDEX_FIELD_GEO, lat, lon, DEFAULT_SEARCH_RADIUS_IN_METERS);
+            SortField sortByDistance = LatLonDocValuesField.newDistanceSort(INDEX_FIELD_GEO_SORT, lat, lon);
+            Sort sort = new Sort(new SortField[] {sortByDistance});
+            TopDocs foundDocs = searcher.search(query, 20, sort);
+            LOG.debug("Found '{}' Winlink channels for query '{}'", foundDocs.totalHits, query);
+
+            for (ScoreDoc scoreDoc : foundDocs.scoreDocs) {
+                Document doc = searcher.doc(scoreDoc.doc);
+		WinlinkRmsChannel channel = convertDocumentToEntity(doc);
+                LOG.info("Found Winlink channel: '{}'", channel);
+                channels.add(channel);
+            }
+            reader.close();
+        } catch (IOException e) {
+            LOG.error("Error executing geospatial query for lat='{}', lon='{}'", lat, lon, e);
+        }
+        return channels;
     }
 }
