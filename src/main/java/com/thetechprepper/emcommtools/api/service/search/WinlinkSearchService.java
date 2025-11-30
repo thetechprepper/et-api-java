@@ -5,12 +5,7 @@ import java.util.List;
 import java.io.IOException;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.lucene.document.Document;
-import org.apache.lucene.document.Field;
-import org.apache.lucene.document.LatLonDocValuesField;
-import org.apache.lucene.document.LatLonPoint;
-import org.apache.lucene.document.StoredField;
-import org.apache.lucene.document.TextField;
+import org.apache.lucene.document.*;
 import org.apache.lucene.index.*;
 import org.apache.lucene.search.*;
 import org.springframework.beans.factory.annotation.Value;
@@ -94,10 +89,10 @@ public class WinlinkSearchService extends AbstractLuceneSearchService<WinlinkRms
         Document doc = new Document();
         doc.add(new TextField(INDEX_FIELD_BASE_CALLSIGN, channel.getBaseCallsign(), Field.Store.YES));
         doc.add(new TextField(INDEX_FIELD_CALLSIGN, channel.getCallsign(), Field.Store.YES));
-        doc.add(new TextField(INDEX_FIELD_MODE, channel.getMode(), Field.Store.YES));
+        doc.add(new StringField(INDEX_FIELD_MODE, channel.getMode(), Field.Store.YES));
         doc.add(new TextField(INDEX_FIELD_MODE_CODE, String.valueOf(channel.getModeCode()), Field.Store.YES));
         doc.add(new TextField(INDEX_FIELD_FREQ, String.valueOf(channel.getFreq()), Field.Store.YES));
-        doc.add(new TextField(INDEX_FIELD_BAND, channel.getBand(), Field.Store.YES));
+        doc.add(new StringField(INDEX_FIELD_BAND, channel.getBand(), Field.Store.YES));
 
         doc.add(new StoredField(INDEX_FIELD_LAT, channel.getLat()));
         doc.add(new StoredField(INDEX_FIELD_LON, channel.getLon()));
@@ -119,7 +114,7 @@ public class WinlinkSearchService extends AbstractLuceneSearchService<WinlinkRms
                    .withFreq(Double.valueOf(doc.get(INDEX_FIELD_FREQ)));
     }
 
-    public List<WinlinkRmsChannel> findNear(final Double lat, final Double lon, final String band) {
+    public List<WinlinkRmsChannel> findNear(final Double lat, final Double lon, final String band, final String mode) {
         List<WinlinkRmsChannel> channels = new ArrayList<>();
 
         try {
@@ -134,6 +129,11 @@ public class WinlinkSearchService extends AbstractLuceneSearchService<WinlinkRms
             if (band != null && !band.isBlank()) {
               Query bandQuery = new TermQuery(new Term(INDEX_FIELD_BAND, band));
               builder.add(bandQuery, BooleanClause.Occur.MUST);
+            }
+
+            if (mode != null && !mode.isBlank()) {
+              Query modeQuery = new TermQuery(new Term(INDEX_FIELD_MODE, mode));
+              builder.add(modeQuery, BooleanClause.Occur.MUST);
             }
 
             Query finalQuery = builder.build();

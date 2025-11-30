@@ -29,12 +29,13 @@ public class WinlinkController {
     public ResponseEntity<List<WinlinkRmsChannel>> findNearbyChannels(
             @RequestParam double lat,
             @RequestParam double lon,
+            @RequestParam(required = false) String mode,
             @RequestParam(required = false) String band)
     {
 
         List<WinlinkRmsChannel> channels = new ArrayList<>();
 
-	channels = winlinkSearchService.findNear(lat, lon, band);
+	channels = winlinkSearchService.findNear(lat, lon, band, mode);
 
         return channels.isEmpty()
             ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(List.of())
