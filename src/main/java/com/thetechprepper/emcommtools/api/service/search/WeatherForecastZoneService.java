@@ -129,7 +129,7 @@ public class WeatherForecastZoneService extends AbstractLuceneSearchService<NWSZ
             for (ScoreDoc scoreDoc : foundDocs.scoreDocs) {
                 Document doc = searcher.doc(scoreDoc.doc);
 		NWSZoneCounty zone = convertDocumentToEntity(doc);
-                LOG.info("Found NWS zones: '{}'", zone);
+                LOG.debug("Found NWS zones: '{}'", zone);
                 zones.add(zone);
             }
             reader.close();

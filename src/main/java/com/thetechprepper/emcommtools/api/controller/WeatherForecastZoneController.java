@@ -15,6 +15,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.thetechprepper.emcommtools.api.model.NWSZoneCounty;
+import com.thetechprepper.emcommtools.api.model.http.PositionResponseStatus;
+import com.thetechprepper.emcommtools.api.model.position.MaidenheadPosition;
+import com.thetechprepper.emcommtools.api.model.position.NullPosition;
+import com.thetechprepper.emcommtools.api.service.GpsService;
+import com.thetechprepper.emcommtools.api.service.UserService;
 import com.thetechprepper.emcommtools.api.service.search.WeatherForecastZoneService;
 
 @RestController
@@ -24,6 +29,41 @@ public class WeatherForecastZoneController {
 
     @Autowired
     private WeatherForecastZoneService weatherForecastZoneService;
+
+    @Autowired
+    private GpsService gpsService;
+
+    @Autowired
+    private UserService userService;
+
+    @GetMapping(value = "/nearme", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<List<NWSZoneCounty>> findNearMe()
+    {
+        List<NWSZoneCounty> zones = new ArrayList<>();
+
+        PositionResponseStatus status = gpsService.currentPosition();
+
+        if (!status.getReady()) {
+            try {
+                MaidenheadPosition fallbackPosition = MaidenheadPosition.newInstance(
+                    userService.getUserConfig().getGrid()
+                );
+                status.setPosition(fallbackPosition);
+                status.setHttpStatus(HttpStatus.OK.value());
+            } catch(Exception e) {
+                LOG.error("No GPS detected and invalid grid square provided", e);
+                status.setPosition(NullPosition.NO_POSITION);
+                status.setHttpStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+            }
+        }
+
+	zones = weatherForecastZoneService.findNear(
+  	    status.getPosition().getLat(), status.getPosition().getLon());
+
+        return zones.isEmpty()
+            ? ResponseEntity.status(status.getHttpStatus()).body(List.of())
+            : ResponseEntity.ok(zones);
+    }
 
     @GetMapping(value = "/near", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<List<NWSZoneCounty>> findNearbyZones(
