@@ -87,7 +87,21 @@ public class NWSZoneCounty {
         sb.append(", lon=").append(lon);
         sb.append(", name='").append(name).append('\'');
         sb.append(", zone='").append(zone).append('\'');
+        sb.append(", url='").append(getUrl()).append('\'');
         sb.append('}');
         return sb.toString();
     }
+
+    public String getUrl() {
+        StringBuilder sb = new StringBuilder();
+	sb.append("https://tgftp.nws.noaa.gov/data/forecasts/state/");
+	sb.append(state.toLowerCase());
+	sb.append("/");
+	sb.append(state.toLowerCase());
+	sb.append("z");
+	sb.append(zone);
+	sb.append(".txt");
+        return sb.toString();
+    }
+
 }

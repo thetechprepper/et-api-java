@@ -124,7 +124,7 @@ public class WeatherForecastZoneService extends AbstractLuceneSearchService<NWSZ
             SortField sortByDistance = LatLonDocValuesField.newDistanceSort(INDEX_FIELD_GEO_SORT, lat, lon);
             Sort sort = new Sort(new SortField[] {sortByDistance});
             TopDocs foundDocs = searcher.search(finalQuery, 20, sort);
-            LOG.info("Found '{}' NWS zones for query '{}'", foundDocs.totalHits, finalQuery);
+            LOG.debug("Found '{}' NWS zones for query '{}'", foundDocs.totalHits, finalQuery);
 
             for (ScoreDoc scoreDoc : foundDocs.scoreDocs) {
                 Document doc = searcher.doc(scoreDoc.doc);
