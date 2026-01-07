@@ -2,6 +2,6 @@ open
 cd data
 cd forecasts
 cd state
-cd ${STATE}
-get ${STATE}z${ZONE}.txt
+cd ${STATE_LOWERCASE}
+get ${STATE_LOWERCASE}z${ZONE}.txt
 quit

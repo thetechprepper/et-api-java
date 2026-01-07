@@ -93,11 +93,8 @@ public class WinlinkController {
 	    String bodyTemplate = TemplateLoader.load(
             "templates/winlink/nws-ftpmail-state-forecast.txt"
         );
-	    String urlTemplate = TemplateLoader.load(
-            "templates/winlink/nws-ftpmail-state-forecast-url.txt"
-        );
 	    String subjectTemplate = TemplateLoader.load(
-            "templates/winlink/nws-ftpmail-state-forecast-url.txt"
+            "templates/winlink/nws-ftpmail-state-forecast-subject.txt"
         );
 
         PositionResponseStatus status = positionService.currentPositionResponseStatus();
@@ -106,14 +103,20 @@ public class WinlinkController {
 
 	    NWSZoneCounty zone = CollectionUtils.firstOrNull(zones);
 
+        String responseMessage = "";
+
         if (zone != null) {
             Map<String, String> vars = Map.of(
-                "STATE", zone.getState().toLowerCase(),
+                "STATE", zone.getState(),
+                "STATE_LOWERCASE", zone.getState().toLowerCase(),
+                "COUNTY", zone.getCounty(),
+                "NAME", zone.getName(),
                 "ZONE", zone.getZone()
             );
 
             String emailBody = SimpleTemplateEngine.renderStrict(bodyTemplate, vars);
             String emailSubject = SimpleTemplateEngine.renderStrict(subjectTemplate, vars);
+            responseMessage = emailSubject;
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.MULTIPART_FORM_DATA);
@@ -134,6 +137,6 @@ public class WinlinkController {
 
         return ResponseEntity
             .accepted()
-            .body(new ActionResponse(202, "test"));
+            .body(new ActionResponse(202, responseMessage));
     }
 }
