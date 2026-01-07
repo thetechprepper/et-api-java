@@ -12,7 +12,7 @@ public class NWSZoneCounty {
 
     private String name;
 
-    private Integer zone;
+    private String zone;
 
     protected NWSZoneCounty() {
     }
@@ -46,7 +46,7 @@ public class NWSZoneCounty {
         return this;
     }
 
-    public NWSZoneCounty withZone(Integer zone) {
+    public NWSZoneCounty withZone(String zone) {
         this.zone = zone;
         return this;
     }
@@ -73,7 +73,7 @@ public class NWSZoneCounty {
         return name;
     }
 
-    public Integer getZone() {
+    public String getZone() {
         return zone;
     }
 

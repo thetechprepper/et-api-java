@@ -61,7 +61,7 @@ public class WeatherForecastZoneService extends AbstractLuceneSearchService<NWSZ
                 try {
                     return NWSZoneCounty.newInstance()
                             .withState(fields[STATE])
-                            .withZone(Integer.valueOf(fields[ZONE]))
+                            .withZone(fields[ZONE])
                             .withName(fields[NAME])
                             .withLat(Double.valueOf(fields[LAT]))
                             .withLon(Double.valueOf(fields[LON]))
@@ -84,7 +84,7 @@ public class WeatherForecastZoneService extends AbstractLuceneSearchService<NWSZ
     protected void indexDoc(IndexWriter writer, NWSZoneCounty zone) throws IOException {
         Document doc = new Document();
         doc.add(new TextField(INDEX_FIELD_STATE, zone.getState(), Field.Store.YES));
-        doc.add(new TextField(INDEX_FIELD_ZONE, String.valueOf(zone.getZone()), Field.Store.YES));
+        doc.add(new TextField(INDEX_FIELD_ZONE, zone.getZone(), Field.Store.YES));
         doc.add(new TextField(INDEX_FIELD_NAME, zone.getName(), Field.Store.YES));
         doc.add(new TextField(INDEX_FIELD_COUNTY, zone.getCounty(), Field.Store.YES));
 
@@ -100,7 +100,7 @@ public class WeatherForecastZoneService extends AbstractLuceneSearchService<NWSZ
     protected NWSZoneCounty convertDocumentToEntity(Document doc) {
         return NWSZoneCounty.newInstance()
                    .withState(doc.get(INDEX_FIELD_STATE))
-                   .withZone(Integer.valueOf(doc.get(INDEX_FIELD_ZONE)))
+                   .withZone(doc.get(INDEX_FIELD_ZONE))
                    .withName(doc.get(INDEX_FIELD_NAME))
                    .withLat(Double.valueOf(doc.get(INDEX_FIELD_LAT)))
                    .withLon(Double.valueOf(doc.get(INDEX_FIELD_LON)))
@@ -128,7 +128,7 @@ public class WeatherForecastZoneService extends AbstractLuceneSearchService<NWSZ
 
             for (ScoreDoc scoreDoc : foundDocs.scoreDocs) {
                 Document doc = searcher.doc(scoreDoc.doc);
-		NWSZoneCounty zone = convertDocumentToEntity(doc);
+                NWSZoneCounty zone = convertDocumentToEntity(doc);
                 LOG.debug("Found NWS zones: '{}'", zone);
                 zones.add(zone);
             }
