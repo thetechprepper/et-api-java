@@ -35,7 +35,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -46,7 +45,7 @@ import com.thetechprepper.emcommtools.api.model.NWSZoneCounty;
 import com.thetechprepper.emcommtools.api.model.http.ActionResponse;
 import com.thetechprepper.emcommtools.api.model.http.PositionResponseStatus;
 import com.thetechprepper.emcommtools.api.service.PositionService;
-import com.thetechprepper.emcommtools.api.service.search.WeatherForecastZoneService;
+import com.thetechprepper.emcommtools.api.service.search.NWSForecastZoneSearchService;
 import com.thetechprepper.emcommtools.api.service.template.SimpleTemplateEngine;
 import com.thetechprepper.emcommtools.api.service.template.TemplateLoader;
 import com.thetechprepper.emcommtools.api.util.GeoUtils;
@@ -71,7 +70,7 @@ public class NWSForecastZoneController {
     private PositionService positionService;
 
     @Autowired
-    private WeatherForecastZoneService weatherForecastZoneService;
+    private NWSForecastZoneSearchService nwsForecastZoneSearchService;
 
     @GetMapping(
         value = "/forecast-zones",
@@ -94,7 +93,7 @@ public class NWSForecastZoneController {
             return ResponseEntity.badRequest().body(List.of());
         }
 
-        List<NWSZoneCounty> zones = weatherForecastZoneService.findNear(lat, lon);
+        List<NWSZoneCounty> zones = nwsForecastZoneSearchService.findNear(lat, lon);
 
         return zones.isEmpty()
             ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(List.of())
@@ -121,7 +120,7 @@ public class NWSForecastZoneController {
             return ResponseEntity.badRequest().body("");
         }
 
-	    NWSZoneCounty zone = firstOrNull(weatherForecastZoneService.findNear(lat, lon));
+	    NWSZoneCounty zone = firstOrNull(nwsForecastZoneSearchService.findNear(lat, lon));
         if (null == zone) {
             return ResponseEntity.notFound().build();         
         }
@@ -168,7 +167,7 @@ public class NWSForecastZoneController {
 
 
         PositionResponseStatus status = positionService.currentPositionResponseStatus();
-        zones = weatherForecastZoneService.findNear(
+        zones = nwsForecastZoneSearchService.findNear(
   	    status.getPosition().getLat(), status.getPosition().getLon());
 
 	    NWSZoneCounty zone = firstOrNull(zones);
