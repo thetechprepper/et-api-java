@@ -26,3 +26,8 @@ Fetch plain text weather forecast for Linden, TN. *Online access required*
 ``
 curl "http://localhost:1981/api/nws/forecast/raw?lat=35.797&lon=-87.753"
 ```
+
+Create Winlink email for FTPmail forecast request. 
+```
+curl -X POST "http://localhost:1981/api/winlink/messages/weather/nws/forecast
+```

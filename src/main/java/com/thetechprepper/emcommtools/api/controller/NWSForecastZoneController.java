@@ -20,36 +20,25 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.RestTemplate;
 
 import com.thetechprepper.emcommtools.api.model.NWSZoneCounty;
-import com.thetechprepper.emcommtools.api.model.http.ActionResponse;
 import com.thetechprepper.emcommtools.api.model.http.PositionResponseStatus;
 import com.thetechprepper.emcommtools.api.service.PositionService;
 import com.thetechprepper.emcommtools.api.service.search.NWSForecastZoneSearchService;
-import com.thetechprepper.emcommtools.api.service.template.SimpleTemplateEngine;
-import com.thetechprepper.emcommtools.api.service.template.TemplateLoader;
+import com.thetechprepper.emcommtools.api.util.CollectionUtils;
 import com.thetechprepper.emcommtools.api.util.GeoUtils;
-import com.thetechprepper.emcommtools.api.util.UtcTimestamp;
 
 /**
  * REST controller for accessing U.S. National Weather Service (NWS) forecast zones.
@@ -120,7 +109,7 @@ public class NWSForecastZoneController {
             return ResponseEntity.badRequest().body("");
         }
 
-	    NWSZoneCounty zone = firstOrNull(nwsForecastZoneSearchService.findNear(lat, lon));
+	    NWSZoneCounty zone = CollectionUtils.firstOrNull(nwsForecastZoneSearchService.findNear(lat, lon));
         if (null == zone) {
             return ResponseEntity.notFound().build();         
         }
@@ -144,70 +133,5 @@ public class NWSForecastZoneController {
             LOG.error("Error fetching: {}", zone.getUrl(), e);
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body("");
         }
-    }
-
-    /* TODO Refactor and push elsewhere */
-    @PostMapping(
-        value = "/winlink/forecast/post",
-	    produces = MediaType.APPLICATION_JSON_VALUE
-    )
-    public ResponseEntity<ActionResponse> postForecastRequestToFtpMail()
-    {
-        List<NWSZoneCounty> zones = new ArrayList<>();
-
-	    RestTemplate restTemplate = new RestTemplate();
-	
-	    String url = "http://localhost:8080/api/mailbox/out";
-	    String bodyTemplate = TemplateLoader.load(
-            "templates/winlink/nws-ftpmail-state-forecast.txt"
-        );
-	    String subjectTemplate = TemplateLoader.load(
-            "templates/winlink/nws-ftpmail-state-forecast-url.txt"
-        );
-
-
-        PositionResponseStatus status = positionService.currentPositionResponseStatus();
-        zones = nwsForecastZoneSearchService.findNear(
-  	    status.getPosition().getLat(), status.getPosition().getLon());
-
-	    NWSZoneCounty zone = firstOrNull(zones);
-
-        if (zone != null) {
-            Map<String, String> vars = Map.of(
-                "STATE", zone.getState().toLowerCase(),
-                "ZONE", zone.getZone().toString()
-            );
-
-            String emailBody = SimpleTemplateEngine.renderStrict(bodyTemplate, vars);
-            String emailSubject = SimpleTemplateEngine.renderStrict(subjectTemplate, vars);
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
-
-            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-
-            body.add("to", "NWS.FTPMail.OPS@noaa.gov");
-            body.add("cc", "");
-            body.add("subject", emailSubject);
-            body.add("body", emailBody);
-            body.add("date", UtcTimestamp.now());
-
-            HttpEntity<MultiValueMap<String, Object>> requestEntity =
-                    new HttpEntity<>(body, headers);
-
-            restTemplate.postForEntity(url, requestEntity, Void.class);
-	}
-
-        return ResponseEntity
-            .accepted()
-            .body(new ActionResponse(202, "test"));
-    }
-
-    public static <T> T firstOrNull(List<T> list) 
-    {
-        if (list != null && !list.isEmpty()) {
-            return list.get(0);
-        }
-        return null;
     }
 }
