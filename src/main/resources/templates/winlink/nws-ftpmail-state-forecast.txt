@@ -1,0 +1,7 @@
+open
+cd data
+cd forecasts
+cd state
+cd ${STATE}
+get ${STATE}z${ZONE}.txt
+quit
