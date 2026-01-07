@@ -56,30 +56,25 @@ public class WeatherForecastZoneController {
     @Autowired
     private WeatherForecastZoneService weatherForecastZoneService;
 
-    @GetMapping(value = "/forecast/nearme", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<List<NWSZoneCounty>> findNearMe()
+    @GetMapping(
+        value = "/forecast-zones",
+        produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    public ResponseEntity<List<NWSZoneCounty>> findForecastZonesByLocation(
+        @RequestParam(required = false) Double lat,
+        @RequestParam(required = false) Double lon
+    )
     {
         List<NWSZoneCounty> zones = new ArrayList<>();
 
-        PositionResponseStatus status = positionService.currentPositionResponseStatus();
+        // Use position service if no lat/lon specified
+        if (null == lat || null == lon) {
+            PositionResponseStatus status = positionService.currentPositionResponseStatus();
+  	        lat = status.getPosition().getLat();
+            lon = status.getPosition().getLon();
+        }
 
-	    zones = weatherForecastZoneService.findNear(
-  	        status.getPosition().getLat(), status.getPosition().getLon());
-
-        return zones.isEmpty()
-            ? ResponseEntity.status(status.getHttpStatus()).body(List.of())
-            : ResponseEntity.ok(zones);
-    }
-
-    @GetMapping(value = "/forecast/near", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<List<NWSZoneCounty>> findNearbyZones(
-            @RequestParam double lat,
-            @RequestParam double lon)
-    {
-
-        List<NWSZoneCounty> zones = new ArrayList<>();
-
-	    zones = weatherForecastZoneService.findNear(lat, lon);
+    	zones = weatherForecastZoneService.findNear(lat, lon);
 
         return zones.isEmpty()
             ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(List.of())
@@ -87,8 +82,8 @@ public class WeatherForecastZoneController {
     }
 
     @PostMapping(
-         value = "/ftpmail/forecast",
-	 produces = MediaType.APPLICATION_JSON_VALUE
+        value = "/winlink/forecast/post",
+	    produces = MediaType.APPLICATION_JSON_VALUE
     )
     public ResponseEntity<ActionResponse> postForecastRequestToFtpMail()
     {
