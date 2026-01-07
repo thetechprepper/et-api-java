@@ -2,7 +2,6 @@ package com.thetechprepper.emcommtools.api.service;
 
 import com.thetechprepper.emcommtools.api.model.http.PositionResponseStatus;
 import com.thetechprepper.emcommtools.api.model.position.GpsPosition;
-import com.thetechprepper.emcommtools.api.util.GeoUtils;
 import com.thetechprepper.emcommtools.api.util.GridSquareUtils;
 import com.ivkos.gpsd4j.client.GpsdClient;
 import com.ivkos.gpsd4j.client.GpsdClientOptions;
