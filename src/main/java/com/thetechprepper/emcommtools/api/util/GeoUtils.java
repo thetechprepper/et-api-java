@@ -1,6 +1,7 @@
 package com.thetechprepper.emcommtools.api.util;
 
-public class GeoUtils {
+public class GeoUtils
+{
 
     /**
      * Original source taken from https://www.geodatasource.com/developers/java.
@@ -53,5 +54,33 @@ public class GeoUtils {
         double bearingRadians = Math.atan2(y,x);
         double bearingDegrees = Math.toDegrees(bearingRadians);
         return ((int)bearingDegrees + 360) % 360;
+    }
+
+    /**
+     * Validates latitude and longitude values.
+     *
+     * @param lat Latitude in decimal degrees
+     * @param lon Longitude in decimal degrees
+     * @return <code>true</code> if either latitude or longitude is missing (null) 
+     *         or out of range; <code>false</code> if both are valid
+     */
+    public static boolean isLatLonInvalid(Double lat, Double lon) {
+        if (lat == null || lon == null) {
+            return true;
+        }
+
+        if (lat < -90.0 || lat > 90.0) {
+            return true;
+        }
+
+        if (lon < -180.0 || lon > 180.0) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public static boolean isLatLonValid(Double lat, Double lon) {
+        return !isLatLonInvalid(lat, lon);
     }
 }
