@@ -81,62 +81,80 @@ public class WinlinkController {
 
     @PostMapping(
         value = "/messages/weather/nws/forecast",
-	    produces = MediaType.APPLICATION_JSON_VALUE
+        produces = MediaType.APPLICATION_JSON_VALUE
     )
-    public ResponseEntity<ActionResponse> postForecastRequestToFtpMail()
-    {
-        List<NWSZoneCounty> zones = new ArrayList<>();
+    public ResponseEntity<ActionResponse> postForecastRequestToFtpMail() {
 
-	    RestTemplate restTemplate = new RestTemplate();
-	
-	    String url = "http://localhost:8080/api/mailbox/out";
-	    String bodyTemplate = TemplateLoader.load(
+        List<NWSZoneCounty> zones = new ArrayList<>();
+        RestTemplate restTemplate = new RestTemplate();
+
+        String url = "http://localhost:8080/api/mailbox/out";
+        String bodyTemplate = TemplateLoader.load(
             "templates/winlink/nws-ftpmail-state-forecast.txt"
         );
-	    String subjectTemplate = TemplateLoader.load(
+        String subjectTemplate = TemplateLoader.load(
             "templates/winlink/nws-ftpmail-state-forecast-subject.txt"
         );
 
+        // Resolve current position
         PositionResponseStatus status = positionService.currentPositionResponseStatus();
         zones = nwsForecastZoneSearchService.findNear(
-  	    status.getPosition().getLat(), status.getPosition().getLon());
+                status.getPosition().getLat(), status.getPosition().getLon()
+        );
 
-	    NWSZoneCounty zone = CollectionUtils.firstOrNull(zones);
+        NWSZoneCounty zone = CollectionUtils.firstOrNull(zones);
 
-        String responseMessage = "";
+        if (zone == null) {
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body(new ActionResponse(404, "No forecast zone found for current location"));
+        }
 
-        if (zone != null) {
-            Map<String, String> vars = Map.of(
+        // Prepare replacement template tokens 
+        Map<String, String> vars = Map.of(
                 "STATE", zone.getState(),
                 "STATE_LOWERCASE", zone.getState().toLowerCase(),
                 "COUNTY", zone.getCounty(),
                 "NAME", zone.getName(),
                 "ZONE", zone.getZone()
-            );
+        );
 
-            String emailBody = SimpleTemplateEngine.renderStrict(bodyTemplate, vars);
-            String emailSubject = SimpleTemplateEngine.renderStrict(subjectTemplate, vars);
-            responseMessage = emailSubject;
+        String emailBody = SimpleTemplateEngine.renderStrict(bodyTemplate, vars);
+        String emailSubject = SimpleTemplateEngine.renderStrict(subjectTemplate, vars);
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        // Prepare request entity
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
-            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("to", "NWS.FTPMail.OPS@noaa.gov");
+        body.add("cc", "");
+        body.add("subject", emailSubject);
+        body.add("body", emailBody);
+        body.add("date", UtcTimestamp.now());
 
-            body.add("to", "NWS.FTPMail.OPS@noaa.gov");
-            body.add("cc", "");
-            body.add("subject", emailSubject);
-            body.add("body", emailBody);
-            body.add("date", UtcTimestamp.now());
+        HttpEntity<MultiValueMap<String, Object>> requestEntity =
+                new HttpEntity<>(body, headers);
 
-            HttpEntity<MultiValueMap<String, Object>> requestEntity =
-                    new HttpEntity<>(body, headers);
+        try {
+            ResponseEntity<Void> response = restTemplate.postForEntity(url, requestEntity, Void.class);
 
-            restTemplate.postForEntity(url, requestEntity, Void.class);
-	    }
+            HttpStatus statusCode = response.getStatusCode();
+            String message;
 
-        return ResponseEntity
-            .accepted()
-            .body(new ActionResponse(202, responseMessage));
+            if (statusCode.is2xxSuccessful()) {
+                message = "Forecast request successfully queued: " + emailSubject;
+            } else {
+                message = "Forecast request failed with status: " + statusCode.value();
+            }
+
+            return ResponseEntity.status(statusCode)
+                    .body(new ActionResponse(statusCode.value(), message));
+
+        } catch (Exception e) {
+            String errorMsg = "Error posting forecast request: " + e.getMessage();
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(new ActionResponse(HttpStatus.SERVICE_UNAVAILABLE.value(), errorMsg));
+        }
     }
 }
