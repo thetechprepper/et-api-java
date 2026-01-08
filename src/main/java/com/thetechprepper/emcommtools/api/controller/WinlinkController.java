@@ -83,9 +83,10 @@ public class WinlinkController {
         value = "/messages/weather/nws/forecast",
         produces = MediaType.APPLICATION_JSON_VALUE
     )
-    public ResponseEntity<ActionResponse> postForecastRequestToFtpMail() {
-
-        List<NWSZoneCounty> zones = new ArrayList<>();
+    public ResponseEntity<ActionResponse> postForecastRequestToFtpMail(
+            @RequestParam(required = false) String state,
+            @RequestParam(required = false) String zone
+    ) {
         RestTemplate restTemplate = new RestTemplate();
 
         String url = "http://localhost:8080/api/mailbox/out";
@@ -96,27 +97,66 @@ public class WinlinkController {
             "templates/winlink/nws-ftpmail-state-forecast-subject.txt"
         );
 
-        // Resolve current position
-        PositionResponseStatus status = positionService.currentPositionResponseStatus();
-        zones = nwsForecastZoneSearchService.findNear(
-                status.getPosition().getLat(), status.getPosition().getLon()
-        );
+        boolean stateProvided = state != null && !state.trim().isEmpty();
+        boolean zoneProvided = zone != null && !zone.trim().isEmpty();
 
-        NWSZoneCounty zone = CollectionUtils.firstOrNull(zones);
-
-        if (zone == null) {
+        // Reject partial input
+        if (stateProvided != zoneProvided) {
             return ResponseEntity
-                    .status(HttpStatus.NOT_FOUND)
-                    .body(new ActionResponse(404, "No forecast zone found for current location"));
+                .badRequest()
+                .body(new ActionResponse(400, "Both 'state' and 'zone' must be provided together."));
         }
 
-        // Prepare replacement template tokens 
+        NWSZoneCounty resolvedZone;
+
+        if (stateProvided) {
+            String st = state.trim().toUpperCase();
+            String zn = zone.trim();
+
+            // Validate state: 2 letters
+            if (!st.matches("^[A-Z]{2}$")) {
+                return ResponseEntity
+                    .badRequest()
+                    .body(new ActionResponse(400, "Invalid 'state'. Expected a 2-letter code."));
+            }
+
+            // Validate zone: exactly 3 digits, including leading zeros
+            if (!zn.matches("^\\d{3}$")) {
+                return ResponseEntity
+                    .badRequest()
+                    .body(new ActionResponse(400, "Invalid 'zone'. Expected exactly 3 digits like '005' or '545'."));
+            }
+
+            // Minimal object for templating
+            resolvedZone = NWSZoneCounty.newInstance()
+                .withState(st)
+                .withZone(zn)
+                .withCounty("")
+                .withName("");
+
+        } else {
+            // Fallback: resolve by current position
+            PositionResponseStatus status = positionService.currentPositionResponseStatus();
+            List<NWSZoneCounty> zones = nwsForecastZoneSearchService.findNear(
+                status.getPosition().getLat(), status.getPosition().getLon()
+            );
+
+            resolvedZone = CollectionUtils.firstOrNull(zones);
+
+            if (resolvedZone == null) {
+                return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body(new ActionResponse(404, "No forecast zone found for current location"));
+            }
+        }
+
+        // Prepare replacement template tokens
         Map<String, String> vars = Map.of(
-                "STATE", zone.getState(),
-                "STATE_LOWERCASE", zone.getState().toLowerCase(),
-                "COUNTY", zone.getCounty(),
-                "NAME", zone.getName(),
-                "ZONE", zone.getZone()
+            "STATE", resolvedZone.getState(),
+            "STATE_LOWERCASE", resolvedZone.getState().toLowerCase(),
+            "COUNTY", resolvedZone.getCounty() == null ? "" : resolvedZone.getCounty(),
+            "NAME", resolvedZone.getName() == null ? "" : resolvedZone.getName(),
+            "ZONE", resolvedZone.getZone()
         );
 
         String emailBody = SimpleTemplateEngine.renderStrict(bodyTemplate, vars);
@@ -133,28 +173,26 @@ public class WinlinkController {
         body.add("body", emailBody);
         body.add("date", UtcTimestamp.now());
 
-        HttpEntity<MultiValueMap<String, Object>> requestEntity =
-                new HttpEntity<>(body, headers);
+        HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
 
         try {
             ResponseEntity<Void> response = restTemplate.postForEntity(url, requestEntity, Void.class);
 
             HttpStatus statusCode = response.getStatusCode();
-            String message;
+            String message = statusCode.is2xxSuccessful()
+                ? "Forecast request successfully queued: " + emailSubject
+                : "Forecast request failed with status: " + statusCode.value();
 
-            if (statusCode.is2xxSuccessful()) {
-                message = "Forecast request successfully queued: " + emailSubject;
-            } else {
-                message = "Forecast request failed with status: " + statusCode.value();
-            }
-
-            return ResponseEntity.status(statusCode)
-                    .body(new ActionResponse(statusCode.value(), message));
+            return ResponseEntity
+                .status(statusCode)
+                .body(new ActionResponse(statusCode.value(), message));
 
         } catch (Exception e) {
             String errorMsg = "Error posting forecast request: " + e.getMessage();
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                    .body(new ActionResponse(HttpStatus.SERVICE_UNAVAILABLE.value(), errorMsg));
+            return ResponseEntity
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(new ActionResponse(HttpStatus.SERVICE_UNAVAILABLE.value(), errorMsg));
         }
     }
+
 }
