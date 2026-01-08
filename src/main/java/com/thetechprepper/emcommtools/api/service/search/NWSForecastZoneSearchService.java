@@ -25,10 +25,11 @@ import org.apache.lucene.document.Field;
 import org.apache.lucene.document.LatLonDocValuesField;
 import org.apache.lucene.document.LatLonPoint;
 import org.apache.lucene.document.StoredField;
-import org.apache.lucene.document.TextField;
+import org.apache.lucene.document.StringField;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.Term;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.IndexSearcher;
@@ -36,6 +37,7 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
+import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TopDocs;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -112,10 +114,10 @@ public class NWSForecastZoneSearchService extends AbstractLuceneSearchService<NW
     @Override
     protected void indexDoc(IndexWriter writer, NWSZoneCounty zone) throws IOException {
         Document doc = new Document();
-        doc.add(new TextField(INDEX_FIELD_STATE, zone.getState(), Field.Store.YES));
-        doc.add(new TextField(INDEX_FIELD_ZONE, zone.getZone(), Field.Store.YES));
-        doc.add(new TextField(INDEX_FIELD_NAME, zone.getName(), Field.Store.YES));
-        doc.add(new TextField(INDEX_FIELD_COUNTY, zone.getCounty(), Field.Store.YES));
+        doc.add(new StringField(INDEX_FIELD_STATE, zone.getState(), Field.Store.YES));
+        doc.add(new StringField(INDEX_FIELD_ZONE, zone.getZone(), Field.Store.YES));
+        doc.add(new StringField(INDEX_FIELD_NAME, zone.getName(), Field.Store.YES));
+        doc.add(new StringField(INDEX_FIELD_COUNTY, zone.getCounty(), Field.Store.YES));
 
         doc.add(new StoredField(INDEX_FIELD_LAT, zone.getLat()));
         doc.add(new StoredField(INDEX_FIELD_LON, zone.getLon()));
@@ -167,4 +169,43 @@ public class NWSForecastZoneSearchService extends AbstractLuceneSearchService<NW
         }
         return zones;
     }
+
+    public List<NWSZoneCounty> findByStateAndZone(final String state, final String zone) {
+        List<NWSZoneCounty> zones = new ArrayList<>();
+
+        try {
+            IndexReader reader = DirectoryReader.open(getDirectory());
+            IndexSearcher searcher = new IndexSearcher(reader);
+
+            // Normalize inputs to match indexed format
+            String st = state == null ? "" : state.trim().toUpperCase();
+            String zn = zone == null ? "" : zone.trim(); // expect "005", "541", etc.
+
+            Query stateQuery = new TermQuery(new Term(INDEX_FIELD_STATE, st));
+            Query zoneQuery = new TermQuery(new Term(INDEX_FIELD_ZONE, zn));
+
+            BooleanQuery.Builder builder = new BooleanQuery.Builder();
+            builder.add(stateQuery, BooleanClause.Occur.MUST);
+            builder.add(zoneQuery, BooleanClause.Occur.MUST);
+
+            Query finalQuery = builder.build();
+
+            TopDocs foundDocs = searcher.search(finalQuery, 20);
+            LOG.info("Found '{}' NWS zones for query '{}'", foundDocs.totalHits, finalQuery);
+
+            for (ScoreDoc scoreDoc : foundDocs.scoreDocs) {
+                Document doc = searcher.doc(scoreDoc.doc);
+                NWSZoneCounty z = convertDocumentToEntity(doc);
+                LOG.info("Found NWS zones: '{}'", z);
+                zones.add(z);
+            }
+
+            reader.close();
+        } catch (IOException e) {
+            LOG.error("Error executing query for state='{}', zone='{}'", state, zone, e);
+        }
+
+        return zones;
+    }
+
 }

@@ -127,12 +127,9 @@ public class WinlinkController {
                     .body(new ActionResponse(400, "Invalid 'zone'. Expected exactly 3 digits like '005' or '545'."));
             }
 
-            // Minimal object for templating
-            resolvedZone = NWSZoneCounty.newInstance()
-                .withState(st)
-                .withZone(zn)
-                .withCounty("")
-                .withName("");
+            resolvedZone = CollectionUtils.firstOrNull(
+                nwsForecastZoneSearchService.findByStateAndZone(st, zone)
+            );
 
         } else {
             // Fallback: resolve by current position

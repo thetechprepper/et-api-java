@@ -6,16 +6,16 @@ Note: This is not official API documentation for EmComm Tools. The API is
 ### National Weather Service API
 
 List closet NWS forecst zones near my current location.
-
 ```
 curl "http://localhost:1981/api/nws/forecast-zones
 ```
 
-List NWS forecst zones near lat/lon sorted by closest distance.
 
+List NWS forecst zones near lat/lon sorted by closest distance.
 ```
 curl "http://localhost:1981/api/nws/forecast-zones?lat=33.0&lon=-112.0
 ```
+
 
 Fetch plain text weather forecast for current location. *Online access required*
 ```
@@ -31,3 +31,14 @@ Create a Winlink email for the FTPmail forecast request based on your area.
 ```
 curl -X POST "http://localhost:1981/api/winlink/messages/weather/nws/forecast
 ```
+
+
+Create a Winlink email for the FTPmail forecast request based on an state
+code and zone.
+```
+curl -X POST \
+  -d "state=TN" \
+  -d "zone=056" \
+  http://localhost:1981/api/winlink/messages/weather/nws/forecast
+```
+
