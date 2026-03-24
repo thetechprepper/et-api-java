@@ -1,0 +1,211 @@
+/*
+ * Copyright (c) 2026 The Tech Prepper, LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.thetechprepper.emcommtools.api.service.search;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.commons.lang3.StringUtils;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Field;
+import org.apache.lucene.document.LatLonDocValuesField;
+import org.apache.lucene.document.LatLonPoint;
+import org.apache.lucene.document.StoredField;
+import org.apache.lucene.document.StringField;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.Term;
+import org.apache.lucene.search.BooleanClause;
+import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.ScoreDoc;
+import org.apache.lucene.search.Sort;
+import org.apache.lucene.search.SortField;
+import org.apache.lucene.search.TermQuery;
+import org.apache.lucene.search.TopDocs;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import com.thetechprepper.emcommtools.api.model.NWSZoneCounty;
+
+@Service
+public class NWSForecastZoneSearchService extends AbstractLuceneSearchService<NWSZoneCounty> {
+
+    @Value("${api.data.weatherforecastzone.path}")
+    private String weatherForecastZoneDataPath;
+
+    @Value("${api.index.weatherforecastzone.path}")
+    private String weatherForecastZoneIndexPath;
+
+    private static final int NUM_CSV_FIELDS = 11;
+    private static int STATE = 0;
+    private static int ZONE = 1;
+    private static int NAME = 3;
+    private static int COUNTY = 5;
+    private static int LAT = 9;
+    private static int LON = 10;
+
+    private static String INDEX_FIELD_STATE = "state";
+    private static String INDEX_FIELD_ZONE = "zone";
+    private static String INDEX_FIELD_NAME = "name";
+    private static String INDEX_FIELD_LAT = "lat";
+    private static String INDEX_FIELD_LON = "lon";
+    private static String INDEX_FIELD_COUNTY = "county";
+
+    private static String INDEX_FIELD_GEO = "geo";
+    private static String INDEX_FIELD_GEO_SORT = "geosort";
+
+    private static long DEFAULT_SEARCH_RADIUS_IN_METERS = 482000; // 482,000m = 482km = 300mi
+
+    @Override
+    protected String getIndexPath() {
+        return weatherForecastZoneIndexPath;
+    }
+
+    @Override
+    protected String getDataPath() {
+        return weatherForecastZoneDataPath;
+    }
+
+    @Override
+    protected NWSZoneCounty parseRecord(String record) {
+        if (StringUtils.isNotBlank(record)) {
+            String fields[] = record.split("\\|");
+            if ( (fields != null) && (fields.length == NUM_CSV_FIELDS) ) {
+
+                try {
+                    return NWSZoneCounty.newInstance()
+                            .withState(fields[STATE])
+                            .withZone(fields[ZONE])
+                            .withName(fields[NAME])
+                            .withLat(Double.valueOf(fields[LAT]))
+                            .withLon(Double.valueOf(fields[LON]))
+                            .withCounty(fields[COUNTY]);
+
+                } catch (Exception e) {
+                    LOG.warn("Error parsing record: '{}'", record, e);
+                    return null;
+                }
+            } else {
+                LOG.warn("Incomplete number of fields for record: '{}'", record);
+            }
+        } else {
+            LOG.warn("Skipping empty record");
+        }
+        return null;
+    }
+
+    @Override
+    protected void indexDoc(IndexWriter writer, NWSZoneCounty zone) throws IOException {
+        Document doc = new Document();
+        doc.add(new StringField(INDEX_FIELD_STATE, zone.getState(), Field.Store.YES));
+        doc.add(new StringField(INDEX_FIELD_ZONE, zone.getZone(), Field.Store.YES));
+        doc.add(new StringField(INDEX_FIELD_NAME, zone.getName(), Field.Store.YES));
+        doc.add(new StringField(INDEX_FIELD_COUNTY, zone.getCounty(), Field.Store.YES));
+
+        doc.add(new StoredField(INDEX_FIELD_LAT, zone.getLat()));
+        doc.add(new StoredField(INDEX_FIELD_LON, zone.getLon()));
+        doc.add(new LatLonPoint(INDEX_FIELD_GEO, zone.getLat(), zone.getLon()));
+        doc.add(new LatLonDocValuesField(INDEX_FIELD_GEO_SORT, zone.getLat(), zone.getLon()));
+
+        writer.addDocument(doc);
+    }
+
+    @Override
+    protected NWSZoneCounty convertDocumentToEntity(Document doc) {
+        return NWSZoneCounty.newInstance()
+                   .withState(doc.get(INDEX_FIELD_STATE))
+                   .withZone(doc.get(INDEX_FIELD_ZONE))
+                   .withName(doc.get(INDEX_FIELD_NAME))
+                   .withLat(Double.valueOf(doc.get(INDEX_FIELD_LAT)))
+                   .withLon(Double.valueOf(doc.get(INDEX_FIELD_LON)))
+                   .withCounty(doc.get(INDEX_FIELD_COUNTY));
+    }
+
+    public List<NWSZoneCounty> findNear(final Double lat, final Double lon) {
+        List<NWSZoneCounty> zones = new ArrayList<>();
+
+        try {
+            IndexReader reader = DirectoryReader.open(getDirectory());
+            IndexSearcher searcher = new IndexSearcher(reader);
+
+            Query distanceQuery = LatLonPoint.newDistanceQuery(INDEX_FIELD_GEO, lat, lon, DEFAULT_SEARCH_RADIUS_IN_METERS);
+
+            BooleanQuery.Builder builder = new BooleanQuery.Builder();
+            builder.add(distanceQuery, BooleanClause.Occur.MUST);
+
+            Query finalQuery = builder.build();
+
+            SortField sortByDistance = LatLonDocValuesField.newDistanceSort(INDEX_FIELD_GEO_SORT, lat, lon);
+            Sort sort = new Sort(new SortField[] {sortByDistance});
+            TopDocs foundDocs = searcher.search(finalQuery, 20, sort);
+            LOG.debug("Found '{}' NWS zones for query '{}'", foundDocs.totalHits, finalQuery);
+
+            for (ScoreDoc scoreDoc : foundDocs.scoreDocs) {
+                Document doc = searcher.doc(scoreDoc.doc);
+                NWSZoneCounty zone = convertDocumentToEntity(doc);
+                LOG.debug("Found NWS zones: '{}'", zone);
+                zones.add(zone);
+            }
+            reader.close();
+        } catch (IOException e) {
+            LOG.error("Error executing geospatial query for lat='{}', lon='{}'", lat, lon, e);
+        }
+        return zones;
+    }
+
+    public List<NWSZoneCounty> findByStateAndZone(final String state, final String zone) {
+        List<NWSZoneCounty> zones = new ArrayList<>();
+
+        try {
+            IndexReader reader = DirectoryReader.open(getDirectory());
+            IndexSearcher searcher = new IndexSearcher(reader);
+
+            // Normalize inputs to match indexed format
+            String st = state == null ? "" : state.trim().toUpperCase();
+            String zn = zone == null ? "" : zone.trim(); // expect "005", "541", etc.
+
+            Query stateQuery = new TermQuery(new Term(INDEX_FIELD_STATE, st));
+            Query zoneQuery = new TermQuery(new Term(INDEX_FIELD_ZONE, zn));
+
+            BooleanQuery.Builder builder = new BooleanQuery.Builder();
+            builder.add(stateQuery, BooleanClause.Occur.MUST);
+            builder.add(zoneQuery, BooleanClause.Occur.MUST);
+
+            Query finalQuery = builder.build();
+
+            TopDocs foundDocs = searcher.search(finalQuery, 20);
+            LOG.info("Found '{}' NWS zones for query '{}'", foundDocs.totalHits, finalQuery);
+
+            for (ScoreDoc scoreDoc : foundDocs.scoreDocs) {
+                Document doc = searcher.doc(scoreDoc.doc);
+                NWSZoneCounty z = convertDocumentToEntity(doc);
+                LOG.info("Found NWS zones: '{}'", z);
+                zones.add(z);
+            }
+
+            reader.close();
+        } catch (IOException e) {
+            LOG.error("Error executing query for state='{}', zone='{}'", state, zone, e);
+        }
+
+        return zones;
+    }
+
+}

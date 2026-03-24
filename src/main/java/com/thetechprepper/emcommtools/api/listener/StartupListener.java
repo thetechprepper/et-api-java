@@ -1,10 +1,5 @@
 package com.thetechprepper.emcommtools.api.listener;
 
-import com.thetechprepper.emcommtools.api.service.search.FaaSearchService;
-import com.thetechprepper.emcommtools.api.service.search.LicenseSearchService;
-import com.thetechprepper.emcommtools.api.service.search.WinlinkSearchService;
-import com.thetechprepper.emcommtools.api.service.search.Zip2GeoService;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +7,12 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
+
+import com.thetechprepper.emcommtools.api.service.search.FaaSearchService;
+import com.thetechprepper.emcommtools.api.service.search.LicenseSearchService;
+import com.thetechprepper.emcommtools.api.service.search.NWSForecastZoneSearchService;
+import com.thetechprepper.emcommtools.api.service.search.WinlinkSearchService;
+import com.thetechprepper.emcommtools.api.service.search.Zip2GeoService;
 
 /**
  * Initializes the application on startup. Builds missing indexes.
@@ -26,6 +27,9 @@ public class StartupListener {
 
     @Autowired
     private LicenseSearchService licenseSearchService;
+
+    @Autowired
+    private NWSForecastZoneSearchService nwsForecastZoneSearchService;
 
     @Autowired
     private WinlinkSearchService winlinkSearchService;
@@ -45,6 +49,7 @@ public class StartupListener {
         buildLicenseIndex();
         buildFaaIndex();
 	buildWinlinkIndex();
+        buildWeatherForecastZoneIndex();
     }
 
     public void buildFaaIndex() {
@@ -57,6 +62,10 @@ public class StartupListener {
 
     public void buildWinlinkIndex() {
         winlinkSearchService.createIndex();
+    }
+
+    public void buildWeatherForecastZoneIndex() {
+        nwsForecastZoneSearchService.createIndex();
     }
 
     public void buildZip2GeoIndex() {
