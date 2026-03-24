@@ -1,0 +1,1 @@
+https://tgftp.nws.noaa.gov/data/forecasts/state/${STATE_LOWERCASE}/${STATE_LOWERCASE}z${ZONE}.txt
