@@ -1,0 +1,8 @@
+open
+cd data
+cd watches_warnings
+cd flash_flood
+cd watch
+cd ${STATE_LOWERCASE}
+get ${STATE_LOWERCASE}z${ZONE}.txt
+quit

@@ -1,0 +1,1 @@
+https://tgftp.nws.noaa.gov/data/watches_warnings/flash_flood/watch/${STATE_LOWERCASE}/${STATE_LOWERCASE}z${ZONE}.txt
